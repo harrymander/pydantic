@@ -6630,6 +6630,33 @@ def test_json_schema_input_type_with_recursive_refs(validator) -> None:
     assert json_schema['$ref'] == '#/$defs/Model'
 
 
+@pytest.mark.parametrize(
+    'validator',
+    [
+        PlainValidator(lambda v: v, json_schema_input_type='Sub'),
+        BeforeValidator(lambda v: v, json_schema_input_type='Sub'),
+        WrapValidator(lambda v, h: h(v), json_schema_input_type='Sub'),
+    ],
+)
+def test_json_schema_input_type_with_external_refs(validator) -> None:
+    """Test that `'definition-ref` schemas for `json_schema_input_type`, where the refs are not referenced as properties
+    elsewhere in the class, are supported.
+
+    See: https://github.com/pydantic/pydantic/issues/11800
+    """
+
+    class Sub(BaseModel):
+        pass
+
+    class Model(BaseModel):
+        sub: Annotated[Any, validator]
+
+    json_schema = Model.model_json_schema()
+
+    assert 'Sub' in json_schema['$defs']
+    assert json_schema['properties']['sub']['$ref'] == '#/$defs/Sub'
+
+
 def test_title_strip() -> None:
     class Model(BaseModel):
         some_field: str = Field(alias='_some_field')
